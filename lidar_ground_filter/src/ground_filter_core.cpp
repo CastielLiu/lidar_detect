@@ -7,7 +7,10 @@ PclTestCore::PclTestCore(ros::NodeHandle &nh)
     nh_private.param<std::string>("raw_points","/velodyne_points");
     nh_private.param<float>("sensor_height",sensor_height_,1.8);
     
-    nh_private.param<bool> ("use_threshold_filter",use_threshold_filter_,true);
+    nh_private.param<bool>("use_threshold_filter",use_threshold_filter_,true);
+    nh_private.param<bool>("use_normal_filter",use_normal_filter_,true);
+    nh_private.param<float>("normal_theta_threshold",normal_theta_threshold_,20.0);
+    
     nh_private.param<float>("clip_x_min",x_min_, 0.0);
     nh_private.param<float>("clip_x_max",x_max_, 50.0);
     nh_private.param<float>("clip_y_min",y_min_, -15.0);
@@ -92,7 +95,7 @@ void PclTestCore::clip_filter(const pcl::PointCloud<pcl::PointXYZI>::Ptr in,cons
     	//double distance = sqrt(in->points[i].x * in->points[i].x + in->points[i].y * in->points[i].y);
     	//去除过高、过低、过远点云
         if (   in->points[i].x<x_min_ || in->points[i].x> x_max_
-            || /*in->points[i].z<z_min_ ||*/ in->points[i].z>z_max_		
+            || in->points[i].z<z_min_ || in->points[i].z>z_max_		
             || in->points[i].y<y_min_ || in->points[i].y>y_max_)
             indices.indices.push_back(i);
         //去除车身附近点云
@@ -286,6 +289,47 @@ void PclTestCore::classify_pc2(std::vector<PointCloudXYZIRTColor> &in_radial_ord
     }
 }
 
+/**
+* @brief filter points with non-vertical normals
+* @param cloud  input cloud
+* @param out    out cloud
+*/
+void PclTestCore::normal_filter(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZI>::Ptr out, float theta)
+{
+    pcl::NormalEstimation<PointT, pcl::Normal> ne;
+    ne.setInputCloud(cloud);
+
+    pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+    ne.setSearchMethod(tree);
+
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    ne.setKSearch(10);   //??????????
+
+    //预设法线的方向  因为法线方向有两种可能
+    ne.setViewPoint(0.0f, 0.0f, 1.0f);
+    ne.compute(*normals);
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_pc_ptr(new pcl::PointCloud<pcl::PointXYZI>);
+
+    filtered_pc_ptr->reserve(cloud->size());
+    static float cos_theta_threshold = std::cos(theta * M_PI / 180.0);
+
+    for (int i = 0; i < cloud->size(); i++) {
+        //.getNormalVector3fMap() 获取法线向量
+        //.normalized() 归一化向量
+        //.dot(Eigen::Vector3f::UnitZ() 取Z的值
+        float dot = normals->at(i).getNormalVector3fMap().normalized().dot(Eigen::Vector3f::UnitZ());
+        if (std::abs(dot) > cos_theta_threshold) {
+            filtered_pc_ptr->push_back(cloud->at(i));
+        }
+    }
+
+    filtered_pc_ptr->width = filtered_pc_ptr->size();
+    filtered_pc_ptr->height = 1;
+    filtered_pc_ptr->is_dense = false;
+    out = filtered_pc_ptr;
+}
+
 void PclTestCore::publish_cloud(const ros::Publisher &in_publisher,
                                 const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_to_publish_ptr,
                                 const std_msgs::Header &in_header)
@@ -307,7 +351,10 @@ void PclTestCore::point_cb(const sensor_msgs::PointCloud2ConstPtr &in_cloud_ptr)
         clip_filter(raw_pc_ptr, filtered_pc_ptr);
     else
         filtered_pc_ptr = raw_pc_ptr;
-
+    
+    if(use_normal_filter_)
+        normal_filter(filtered_pc_ptr, filtered_pc_ptr, normal_theta_threshold_);
+    
     std::vector<pcl::PointIndices> radial_division_indices;
     std::vector<PointCloudXYZIRTColor> radial_ordered_clouds;
 

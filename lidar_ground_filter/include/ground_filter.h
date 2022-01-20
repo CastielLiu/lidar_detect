@@ -6,6 +6,7 @@
 #include <pcl/conversions.h>
 #include <pcl_ros/transforms.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/features/normal_3d.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <fstream>
 
@@ -16,7 +17,7 @@
 
 class PclTestCore
 {
-
+  typedef pcl::PointXYZI PointT;
 private:
   ros::Subscriber sub_point_cloud_;
   ros::Publisher pub_ground_, pub_no_ground_;
@@ -25,6 +26,8 @@ private:
   float clip_height_;
   float x_min_,y_min_,z_min_,x_max_,y_max_,z_max_; //阈值分割参数
   bool  use_threshold_filter_;
+  bool  use_normal_filter_;
+  float normal_theta_threshold_;
 
   float local_max_slope_; //局部最大坡度，相邻两点之间
   float global_max_slope_;//全局最大坡度，相对于原点
@@ -55,6 +58,8 @@ private:
   void remove_close_pt(double min_distance, const pcl::PointCloud<pcl::PointXYZI>::Ptr in, const pcl::PointCloud<pcl::PointXYZI>::Ptr out);
 
   void clip_filter(const pcl::PointCloud<pcl::PointXYZI>::Ptr in,const pcl::PointCloud<pcl::PointXYZI>::Ptr out);
+
+  void normal_filter(const pcl::PointCloud<pcl::PointXYZI>::Ptr& in, pcl::PointCloud<pcl::PointXYZI>::Ptr out, float theta);
 
   void saveDividedPointsToFile(const std::vector<PointCloudXYZIRTColor> &out_radial_ordered_clouds);
 

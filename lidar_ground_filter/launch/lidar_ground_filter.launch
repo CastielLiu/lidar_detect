@@ -8,15 +8,17 @@
 		<param name="sensor_height" value="1.8"/>
 		<param name="use_threshold_filter" value="true"/>
 		<param name="clip_x_min" value="0.0"/>
-		<param name="clip_x_max" value="50.0"/>
+		<param name="clip_x_max" value="35.0"/>
 		<param name="clip_y_min" value="-20.0"/>
 		<param name="clip_y_max" value="20.0"/>
-		<param name="clip_z_min" value="-2.0"/>
+		<param name="clip_z_min" value="-1.8"/>
 		<param name="clip_z_max" value="0.1"/>
 		<param name="min_height_threshold" value="0.2"/>
 		<param name="local_max_slope" value="20"/>
 		<param name="global_max_slope" value="25.0"/>
-		
+
+		<param name="normal_theta_threshold" value="20.0"/>
+		<param name="use_normal_filter" value="false"/>
 	</node>
 
 </launch>
